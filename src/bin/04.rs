@@ -1,4 +1,6 @@
-use itertools::chain;
+use itertools::{chain, Itertools};
+use std::cmp::max;
+use std::collections::HashSet;
 
 advent_of_code::solution!(4);
 
@@ -49,14 +51,15 @@ impl<'a> Grid<'a> {
     }
 }
 
+fn find_word<'a, 'b>(word: &'a str, s: &'b str) -> impl Iterator<Item=usize> + use<'a, 'b>
+{
+    (0..max(s.len(), word.len()) - word.len() + 1)
+        .filter(move |&i| s[i..].starts_with(word))
+}
+
 fn count_word(word: &str, s: &str) -> usize
 {
-    if s.len() < word.len() {
-        return 0 
-    }
-    (0..s.len() - word.len() + 1)
-        .filter(|&i| s[i..].starts_with(word))
-        .count()
+    find_word(word, s).count()
 }
 
 pub fn part_one(input: &str) -> Option<usize> {
@@ -76,14 +79,26 @@ pub fn part_one(input: &str) -> Option<usize> {
         .sum())
 }
 
-// fn word indices
+pub fn part_two(input: &str) -> Option<usize> {
+    let grid = Grid::new(input);
+    
+    let lr_diagonal_pos: HashSet<(usize, usize)> = chain![
+        (0..grid.cols).map(|c| (0, c)),
+         (1..grid.rows).map(|r| (r, 0)),
+    ].flat_map(|(r, c)| {
+        let diag = grid.lr_diagonal(r, c);
+        chain![find_word("MAS", &diag), find_word("SAM", &diag)].map(|i| (r + i + 1, c + i + 1)).collect_vec()
+    }).collect();
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    todo!("take the diagonals and find A indexes in both")
-    // let i = word index in (c + i + 1, r + i + 1)
-    // similar for other diagonal
-    // intersection
-    // size
+    let rl_diagonal_pos: HashSet<(usize, usize)> = chain![
+        (0..grid.cols).map(|c| (0, c)),
+         (1..grid.rows).map(|r| (r, grid.cols - 1)),
+    ].flat_map(|(r, c)| {
+        let diag = grid.rl_diagonal(r, c);
+        chain![find_word("MAS", &diag), find_word("SAM", &diag)].map(|i| (r + i + 1, c - i - 1)).collect_vec()
+    }).collect();
+    
+    Some(lr_diagonal_pos.intersection(&rl_diagonal_pos).count())
 }
 
 #[cfg(test)]
@@ -99,6 +114,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(9));
     }
 }
