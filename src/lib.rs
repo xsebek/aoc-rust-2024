@@ -17,13 +17,17 @@ impl<'a> Grid<'a> {
         if row >= self.rows as isize || col >= self.cols as isize || row < 0 || col < 0 {
             return None
         }
-        Some(self.data.as_bytes()[row as usize * (self.cols + 1) + col as usize] as char)
+        Some(self.data.as_bytes()[self.raw_index(row, col)] as char)
     }
-    
+
     pub fn get(&self, row: usize, col: usize) -> char {
         self.try_get(row as isize, col as isize).expect("col and row must be within range")
     }
-
+    
+    pub fn raw_index(&self, row: isize, col: isize) -> usize {
+        row as usize * (self.cols + 1) + col as usize
+    }
+    
     pub fn row(&self, row: usize) -> String {
         (0..self.cols).map(move |col| self.get(row, col)).collect()
     }
