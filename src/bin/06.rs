@@ -1,32 +1,10 @@
 use advent_of_code;
-use advent_of_code::Grid;
+use advent_of_code::{Grid, GridIx};
 use itertools::Itertools;
 use std::collections::HashSet;
 use std::iter::from_fn;
 
 advent_of_code::solution!(6);
-
-#[derive(Eq, Hash, PartialEq, Debug, Clone, Copy)]
-struct GridIx {
-    row: isize,
-    col: isize,
-}
-
-impl GridIx {
-    fn rot90(&self) -> GridIx {
-        GridIx {
-            row: self.col,
-            col: -self.row,
-        }
-    }
-
-    fn add(&self, other: &GridIx) -> GridIx {
-        GridIx {
-            row: self.row + other.row,
-            col: self.col + other.col,
-        }
-    }
-}
 
 fn find_start(grid: &Grid) -> GridIx {
     (0..grid.rows)
