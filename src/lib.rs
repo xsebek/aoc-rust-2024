@@ -1,5 +1,6 @@
 pub mod template;
 
+
 pub struct Grid<'a> {
     pub rows: usize,
     pub cols: usize,
