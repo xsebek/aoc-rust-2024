@@ -41,6 +41,22 @@ fn parse(s: &str) -> IResult<&str, Vec<Machine>> {
 
 // X = A * ax + B * bx
 // Y = A * ay + B * by
+// -----
+// A = (X - B * bx) / ax = (X / ax) - B * (bx / ax)
+// -----
+// Y = ((X / ax) - B * (bx / ax)) * ay + B * by
+// Y - (X * ay / ax) = B * (- bx * ay / ax) + B * by
+// Y - (X * ay / ax) = B * (by - (bx * ay / ax))
+// -----
+// B = (Y - (X * ay / ax)) / (by - (bx * ay / ax))
+// B = (Y - (X * ay / ax)) / (by - (bx * ay / ax))
+// B = (Y * ax / ax - (X * ay / ax)) / (by - (bx * ay / ax))
+// B = (Y * ax - X * ay) / (ax * (by - (bx * ay / ax)))
+// B = (Y * ax - X * ay) / (by * ax - bx * ay)
+// -----
+// X = A * ax + B * bx
+// X - B * bx = A * ax
+// A = (X - B * bx) / ax
 fn solve(claw: Machine) -> Option<(i64, i64)> {
     // B = (Y * ax - X * ay) / (by * ax - bx * ay)
     let b_dividend = claw.prize.y * claw.a.x - claw.prize.x * claw.a.y;
