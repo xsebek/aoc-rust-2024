@@ -57,7 +57,7 @@ fn attempt_move(grid: &mut Matrix<char>, pos: (usize, usize), dir: char) -> Opti
 
 fn gps(grid: &Matrix<char>) -> usize {
     grid.items().map(|(k, c)| match c {
-        'O' => 100 * k.0 + k.1,
+        'O' | '[' => 100 * k.0 + k.1,
         _ => 0,
     }).sum()
 }
@@ -84,8 +84,79 @@ pub fn part_one(input: &str) -> Option<usize> {
 
 /// region Part two
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+fn expand(c: char) -> [char; 2] {
+    match c {
+        'O' => ['[', ']'],
+        '@' => ['@', '.'],
+        c => [c, c],
+    }
+}
+
+fn expand_grid(grid: &Matrix<char>) -> Matrix<char> {
+    Matrix::from_rows(grid.into_iter().map(|r|
+        r.iter().flat_map(|&c| expand(c))
+    )).expect("rectangle grid")
+}
+
+fn rec_move_single(grid: &mut Matrix<char>, start: (usize, usize), dir: (isize, isize)) -> bool {
+    if let Some(next) = grid.move_in_direction(start, dir) {
+        let move_res = match grid[next] {
+            '#' => false,
+            '.' => true,
+            'O' | '[' | ']' => rec_move_dir(grid, next, dir),
+            c => panic!("Unknown entity '{c}'"),
+        };
+        if move_res {
+            grid.swap(start, next);
+        }
+        move_res
+    } else {
+        false
+    }
+}
+
+fn other_pos(pos: (usize, usize), c: char) -> (usize, usize) {
+    match c {
+        '[' => (pos.0, pos.1 + 1),
+        ']' => (pos.0, pos.1 - 1),
+        c => panic!("No matching position for {c}"),
+    }
+}
+
+fn rec_move_dir(grid: &mut Matrix<char>, start: (usize, usize), dir: (isize, isize)) -> bool {
+    match grid[start] {
+        c@('[' | ']') if dir == directions::S || dir == directions::N =>
+            rec_move_single(grid, start, dir) && rec_move_single(grid, other_pos(start, c), dir),
+        _ => rec_move_single(grid, start, dir),
+    }
+}
+
+fn rec_move(grid: Matrix<char>, start: (usize, usize), dir: char) -> ((usize, usize), Matrix<char>) {
+    match to_dir(dir) {
+        Some(d) => {
+            let mut temp = grid.clone();
+            if rec_move_dir(&mut temp, start, d) {
+                let next = grid.move_in_direction(start, d).unwrap();
+                (next, temp)
+            } else {
+                (start, grid)
+            }
+        },
+        None => (start, grid),
+    }
+}
+
+pub fn part_two(input: &str) -> Option<usize> {
+    let (grid, moves) = parse(input);
+    let mut grid = expand_grid(&grid);
+    // debug(&grid);
+    
+    let mut pos = find_pos(&grid);
+    for m in moves.chars() {
+        (pos, grid) = rec_move(grid, pos, m);
+        // debug(&grid);
+    }
+    Some(gps(&grid))
 }
 
 /// endregion Part two
@@ -98,11 +169,17 @@ mod tests {
     fn test_part_one() {
         let result = part_one(&advent_of_code::template::read_file("examples", DAY));
         assert_eq!(result, Some(2028));
+
+        let result = part_one(&advent_of_code::template::read_file_part("examples", DAY, 1));
+        assert_eq!(result, Some(10092));
     }
 
     #[test]
     fn test_part_two() {
-        let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        let result = part_two(&advent_of_code::template::read_file_part("examples", DAY, 2));
+        assert_eq!(result, Some(105 + 207 + 306));
+
+        let result = part_two(&advent_of_code::template::read_file_part("examples", DAY, 1));
+        assert_eq!(result, Some(9021));
     }
 }
