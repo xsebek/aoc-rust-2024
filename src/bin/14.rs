@@ -104,11 +104,13 @@ fn part_one_parametrised(input: &str, space: V, seconds: i32, debug: bool) -> Op
 
     let mx = space.x / 2;
     let my = space.y / 2;
-    let ul = lobby.iter().filter(|robot| robot.position.x < mx && robot.position.y < my).count();
-    let ur = lobby.iter().filter(|robot| robot.position.x > mx && robot.position.y < my).count();
-    let ll = lobby.iter().filter(|robot| robot.position.x < mx && robot.position.y > my).count();
-    let lr = lobby.iter().filter(|robot| robot.position.x > mx && robot.position.y > my).count();
-    Some(ul * ur * ll * lr)
+    let mut quads = [[0; 3]; 3];
+    for robot in lobby {
+        let xi = mx.cmp(&robot.position.x) as i8;
+        let yi = my.cmp(&robot.position.y) as i8;
+        quads[(xi + 1) as usize][(yi + 1) as usize] += 1;
+    }
+    Some(quads[0][0] * quads[0][2] * quads[2][0] * quads[2][2])
 }
 
 const LOBBY: V = V {x: 101, y: 103};
