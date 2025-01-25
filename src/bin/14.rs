@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{stdin, stdout, Write};
 use bitflags::bitflags;
 use itertools::Itertools;
@@ -56,8 +57,7 @@ bitflags! {
     }
 }
 
-fn debug_lobby(view: D, space: V, robots: &[Robot]) {
-    let positions = robots.iter().map(|robot| robot.position).counts();
+fn debug_map(view: D, space: V, robot_map: HashMap<V, usize>) {
     let mx = space.x / 2;
     let my = space.y / 2;
     let quadrants = view.contains(D::QUADS);
@@ -73,7 +73,7 @@ fn debug_lobby(view: D, space: V, robots: &[Robot]) {
                 if quadrants && x == mx {
                     String::from(' ')
                 } else {
-                    positions.get(&V{x, y}).map_or(
+                    robot_map.get(&V{x, y}).map_or(
                         String::from(if dots {'.'} else {'0'}),
                         |n| n.to_string()
                     )
@@ -81,6 +81,10 @@ fn debug_lobby(view: D, space: V, robots: &[Robot]) {
             .collect();
         println!("{line}");
     }
+}
+
+fn debug_lobby(view: D, space: V, robots: &[Robot]) {
+    debug_map(view, space, robots.iter().map(|robot| robot.position).counts())
 }
 
 fn part_one_parametrised(input: &str, space: V, seconds: i32, debug: bool) -> Option<usize> {
@@ -120,22 +124,74 @@ pub fn part_one(input: &str) -> Option<usize> {
     part_one_parametrised(input, LOBBY, SECONDS, false)
 }
 
-pub fn part_two(input: &str) -> Option<i32> {
-    let (rest, robots) = parse(input).unwrap();
-    assert_eq!(rest, "");
-    // TODO: search for "111111111111111111111"
-    for i in 4000.. {
-        let ri = robots.iter().map(|r| simulate(*r, LOBBY, i)).collect_vec();
-        debug_lobby(D::DOTS, LOBBY, &ri);
-        print!("{i}: Do you see a tree (y/n)?\n> ");
-        stdout().flush().unwrap();
-        let mut line = String::new();
-        match stdin().read_line(&mut line) {
-            Ok(_) if line == "y" => return Some(i),
-            _ => {},
+fn longest_sequence(input: &[i32]) -> usize {
+    let mut max = 0;
+    let mut seq = 1;
+    for (&previous, &current) in input.iter().zip(input.iter().skip(1)) {
+        if previous + 1 == current {
+            seq += 1;
+        } else {
+            max = max.max(seq);
+            seq = 1;
         }
     }
-    None
+    max.max(seq)
+}
+
+fn robots_in_line(robots: &[Robot], space: V, seconds: i32) -> (HashMap<V, usize>, usize) {
+    let robot_map = robots
+        .iter()
+        .map(|r| simulate(*r, space, seconds).position)
+        .counts();
+
+    let lines = robot_map.iter()
+        .sorted_by_key(|(v, _)| v.y)
+        .chunk_by(|(v, _)| v.y)
+        .into_iter()
+        .map(|(_, g)| g.map(|(v, _)| v.x).sorted().collect_vec())
+        .collect_vec();
+
+    (robot_map, lines.iter().map(|l| longest_sequence(l)).max().unwrap())
+}
+
+fn interact(query: String) -> bool {
+    print!("{query} (y/n)?\n> ");
+    stdout().flush().unwrap();
+    let mut line = String::new();
+    stdin().read_line(&mut line).is_ok() && line.to_lowercase().contains("y")
+}
+
+fn part_two_parametrised(input: &str, space: V, interactive: Option<usize>) -> Option<i32> {
+    let (rest, robots) = parse(input).unwrap();
+    assert_eq!(rest, "");
+    let mut max_line = 0;
+    let mut result: Option<i32> = None;
+
+    for i in 1..(space.x * space.y) {
+        if interactive.is_some() && i % 1000 == 0 {
+            println!("== {i:6} ============================")
+        }
+        let (robot_map, line_len) = robots_in_line(&robots, LOBBY, i);
+
+        if line_len > max_line {
+            max_line = line_len;
+            result = Some(i);
+        }
+
+        if interactive.is_none_or(|threshold| line_len < threshold) {
+            continue
+        }
+
+        debug_map(D::DOTS, space, robot_map);
+        if interact(format!("{i}: Do you see a tree")) {
+            return Some(i);
+        }
+    }
+    result
+}
+
+pub fn part_two(input: &str) -> Option<i32> {
+    part_two_parametrised(input, LOBBY, None) // set Some(6) to search interactively
 }
 
 #[cfg(test)]
@@ -152,6 +208,18 @@ mod tests {
         );
         assert_eq!(result, Some(12));
     }
+
+    #[test]
+    fn test_longest_sequence() {
+        assert_eq!(longest_sequence(&vec![1, 2, 4, 5, 6, 8, 9]), 3);
+    }
     
-    // part two is interactive
+    #[test]
+    fn test_part_two() {
+        let result = part_two_parametrised(
+            &advent_of_code::template::read_file("examples", DAY), 
+            V {x: 11, y: 7}, 
+            None);
+        assert_eq!(result, Some(1));
+    }
 }
